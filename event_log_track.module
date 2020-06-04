@@ -1,5 +1,4 @@
 <?php
-
 /**
  * @file
  * Track the logs of form submissions or other actions that performed by user.
@@ -13,35 +12,37 @@ use Drupal\Core\Routing\RouteMatchInterface;
 /**
  * Implements hook_help().
  */
-function event_log_track_help($route_name, RouteMatchInterface $route_match) {
-  switch ($route_name) {
-    case 'help.page.event_log_track':
-      $output = '<h3>' . t('About') . '</h3>';
-      $output .= '<p>' . t("You can track logs of specific events that you'd like to log. The events  by the user (using the forms) are saved in the database and can be viewed on the page admin/reports/events-track. You could use this to track number of times the CUD operation performed by which users. This module required by: Events Log Track User Authentication, Events Log Track Menu, Events Log Track Node, Events Log Track Taxonomy, Events Log Track User.") . '</p>';
-      $output .= '<h3>' . t('Uses') . '</h3>';
-      $output .= '<dl>';
-      $output .= '<dt>' . t('Events Log Track Menu') . '</dt>';
-      $output .= '<dd>' . t('Using this submodule you can logs menu CUD events performed by the user. This module requires: Events Log Track.') . '</dd>';
-      $output .= '</dl>';
-      $output .= '<dl>';
-      $output .= '<dt>' . t('Events Log Track Node') . '</dt>';
-      $output .= '<dd>' . t('Using this submodule you can logs node CUD events performed by the user. This module requires: Events Log Track.') . '</dd>';
-      $output .= '</dl>';
-      $output .= '<dl>';
-      $output .= '<dt>' . t('Events Log Track Taxonomy') . '</dt>';
-      $output .= '<dd>' . t('Using this submodule you can logs taxonomy vocabulary and term CUD events performed by the user. This module requires: Events Log Track.') . '</dd>';
-      $output .= '</dl>';
-      $output .= '<dl>';
-      $output .= '<dt>' . t('Events Log Track User') . '</dt>';
-      $output .= '<dd>' . t('Using this submodule you can logs user CUD events performed by the user. This module requires: Events Log Track.') . '</dd>';
-      $output .= '</dl>';
-      $output .= '<dl>';
-      $output .= '<dt>' . t('Events Log Track User Authentication') . '</dt>';
-      $output .= '<dd>' . t('Using this submodule you can logs user authentication (login logout and request password). This module requires: Events Log Track.') . '</dd>';
-      $output .= '</dl>';
+function event_log_track_help($route_name, RouteMatchInterface $route_match)
+{
+    switch ($route_name)
+    {
+        case 'help.page.event_log_track':
+            $output = '<h3>' . t('About') . '</h3>';
+            $output .= '<p>' . t("You can track logs of specific events that you'd like to log. The events  by the user (using the forms) are saved in the database and can be viewed on the page admin/reports/events-track. You could use this to track number of times the CUD operation performed by which users. This module required by: Events Log Track User Authentication, Events Log Track Menu, Events Log Track Node, Events Log Track Taxonomy, Events Log Track User.") . '</p>';
+            $output .= '<h3>' . t('Uses') . '</h3>';
+            $output .= '<dl>';
+            $output .= '<dt>' . t('Events Log Track Menu') . '</dt>';
+            $output .= '<dd>' . t('Using this submodule you can logs menu CUD events performed by the user. This module requires: Events Log Track.') . '</dd>';
+            $output .= '</dl>';
+            $output .= '<dl>';
+            $output .= '<dt>' . t('Events Log Track Node') . '</dt>';
+            $output .= '<dd>' . t('Using this submodule you can logs node CUD events performed by the user. This module requires: Events Log Track.') . '</dd>';
+            $output .= '</dl>';
+            $output .= '<dl>';
+            $output .= '<dt>' . t('Events Log Track Taxonomy') . '</dt>';
+            $output .= '<dd>' . t('Using this submodule you can logs taxonomy vocabulary and term CUD events performed by the user. This module requires: Events Log Track.') . '</dd>';
+            $output .= '</dl>';
+            $output .= '<dl>';
+            $output .= '<dt>' . t('Events Log Track User') . '</dt>';
+            $output .= '<dd>' . t('Using this submodule you can logs user CUD events performed by the user. This module requires: Events Log Track.') . '</dd>';
+            $output .= '</dl>';
+            $output .= '<dl>';
+            $output .= '<dt>' . t('Events Log Track User Authentication') . '</dt>';
+            $output .= '<dd>' . t('Using this submodule you can logs user authentication (login logout and request password). This module requires: Events Log Track.') . '</dd>';
+            $output .= '</dl>';
 
-      return $output;
-  }
+            return $output;
+    }
 }
 
 /**
@@ -61,48 +62,133 @@ function event_log_track_help($route_name, RouteMatchInterface $route_match) {
  *   - {string} ref_char
  *     Reference to alphabetical id. Optional.
  */
-function event_log_track_insert(array &$log) {
-  if (PHP_SAPI == 'cli') {
-    // Ignore CLI requests.
-    return;
-  }
+function event_log_track_insert(array & $log)
+{
+    if (PHP_SAPI == 'cli')
+    {
+        // Ignore CLI requests.
+        return;
+    }
 
-  if (empty($log['created'])) {
-    $log['created'] = REQUEST_TIME;
-  }
+    if (empty($log['created']))
+    {
+        $log['created'] = REQUEST_TIME;
+    }
 
-  if (empty($log['uid'])) {
-    $account = \Drupal::currentUser();
-    $log['uid'] = $account->id();
-  }
+    if (empty($log['uid']))
+    {
+        $account = \Drupal::currentUser();
+        $log['uid'] = $account->id();
+    }
 
-  $ip = Drupal::request()->getClientIp();
-  if (empty($log['ip']) && !empty($ip)) {
-    $log['ip'] = $ip;
-  }
+    $ip = Drupal::request()->getClientIp();
+    if (empty($log['ip']) && !empty($ip))
+    {
+        $log['ip'] = $ip;
+    }
 
-  if (empty($log['path'])) {
-    $log['path'] = Url::fromRoute('<current>')->getInternalPath();
-  }
+    if (empty($log['path']))
+    {
+        $log['path'] = Url::fromRoute('<current>')->getInternalPath();
+    }
 
-  if (empty($log['ref_numeric'])) {
-    $log['ref_numeric'] = NULL;
-  }
+    if (empty($log['ref_numeric']))
+    {
+        $log['ref_numeric'] = NULL;
+    }
+    if (get_event_track_backup())
+    {
+        \Drupal::database()->merge('event_log_track')
+            ->key('lid')
+            ->fields(array(
+            'type' => $log['type'],
+            'operation' => $log['operation'],
+            'description' => $log['description'],
+            'created' => $log['created'],
+            'uid' => $log['uid'],
+            'ip' => $log['ip'],
+            'path' => $log['path'],
+            'ref_char' => $log['ref_char'],
+            'ref_numeric' => $log['ref_numeric'],
+        ))->execute();
+    }
+}
 
-  \Drupal::database()->merge('event_log_track')
-    ->key('lid')
-    ->fields(array(
-      'type' => $log['type'],
-      'operation' => $log['operation'],
-      'description' => $log['description'],
-      'created' => $log['created'],
-      'uid' => $log['uid'],
-      'ip' => $log['ip'],
-      'path' => $log['path'],
-      'ref_char' => $log['ref_char'],
-      'ref_numeric' => $log['ref_numeric'],
-    ))
-    ->execute();
+function get_event_track_backup()
+{
+    if (\Drupal::currentUser()
+        ->isAuthenticated())
+    {
+        $current_date = date('d-m-Y-H:i:sA');
+
+        $config = \Drupal::config('general.eventtrack');
+
+        $limit = $config->get('EventLogTrackLimit');
+
+        $sql = db_query("SELECT * from event_log_track order by lid ASC")->fetchAll();
+        $count = count($sql);
+        if ($count >= $limit)
+        {
+            $dir = "private://EventLogTrackBackup/eventlog$current_date.csv";
+            header('Content-Type: text/csv; charset=utf-8');
+            header('Content-Disposition: attachment; filename=data.csv');
+            $output = fopen($dir, "w");
+            fputcsv($output, array(
+                'lid',
+                'type',
+                'operation',
+                'path',
+                'ref_numeric',
+                'ref_char',
+                'description',
+                'uid',
+                'ip',
+                'created'
+            ));
+            $start_id = 0;
+            $end_id = 0;
+
+            if (!empty($sql))
+            {
+                foreach ($sql as $rdata)
+                {
+                    $lid = $rdata->lid;
+                    $type = $rdata->type;
+                    $operation = $rdata->operation;
+                    $path = $rdata->path;
+                    $ref_numeric = $rdata->ref_numeric;
+                    $ref_char = $rdata->ref_char;
+                    $description = strip_tags($rdata->description);
+                    $uid = $rdata->uid;
+                    $ip = $rdata->ip;
+                    // $created= $rdata->created;
+                    $created = date("Y-m-d H:i:s", $rdata->created);
+
+                    if ($start_id == 0)
+                    {
+                        $start_id = $lid;
+                    }
+                    $end_id = $lid;
+                    fputcsv($output, array(
+                        $lid,
+                        $type,
+                        $operation,
+                        $path,
+                        $ref_numeric,
+                        $ref_char,
+                        $description,
+                        $uid,
+                        $ip,
+                        $created
+                    ));
+
+                }
+
+            }
+            $del_sql = db_query("truncate table event_log_track")->execute();
+        }
+    }
+    return true;
 }
 
 /**
@@ -111,67 +197,81 @@ function event_log_track_insert(array &$log) {
  * @return array
  *   An array with the event log handlers.
  */
-function event_log_track_get_event_handlers() {
-  $handlers = drupal_static(__FUNCTION__);
-  if ($handlers === NULL) {
-    $handlers = Drupal::moduleHandler()->invokeAll('event_log_track_handlers');
-    \Drupal::moduleHandler()->alter('event_log_track_handlers', $handlers);
-  }
-  return $handlers;
+function event_log_track_get_event_handlers()
+{
+    $handlers = drupal_static(__FUNCTION__);
+    if ($handlers === NULL)
+    {
+        $handlers = Drupal::moduleHandler()->invokeAll('event_log_track_handlers');
+        \Drupal::moduleHandler()
+            ->alter('event_log_track_handlers', $handlers);
+    }
+    return $handlers;
 }
 
 /**
  * Form submission callback.
  */
-function event_log_track_form_submit(&$form, FormStateInterface $form_state) {
-  if (!empty($form_state->__event_log_track_logged)) {
-    // Some forms are submitted twice, for instance the node_form.
-    // We will only call the submit callback once.
-    return;
-  }
-
-  $form_state->__event_log_track_logged = TRUE;
-
-  // Get form id.
-  $form_id = $form['#form_id'];
-
-  // Dispatch the submission to the correct event handler.
-  $handlers = event_log_track_get_event_handlers();
-  foreach ($handlers as $type => $handler) {
-    $dispatch = FALSE;
-    if (!empty($handler['form_ids']) && in_array($form_id, $handler['form_ids'])) {
-      $dispatch = TRUE;
+function event_log_track_form_submit(&$form, FormStateInterface $form_state)
+{
+    if (!empty($form_state->__event_log_track_logged))
+    {
+        // Some forms are submitted twice, for instance the node_form.
+        // We will only call the submit callback once.
+        return;
     }
-    elseif (!empty($handler['form_ids_regexp'])) {
-      foreach ($handler['form_ids_regexp'] as $regexp) {
-        if (preg_match($regexp, $form_id)) {
-          $dispatch = TRUE;
-          break;
+
+    $form_state->__event_log_track_logged = true;
+
+    // Get form id.
+    $form_id = $form['#form_id'];
+
+    // Dispatch the submission to the correct event handler.
+    $handlers = event_log_track_get_event_handlers();
+    foreach ($handlers as $type => $handler)
+    {
+        $dispatch = false;
+        if (!empty($handler['form_ids']) && in_array($form_id, $handler['form_ids']))
+        {
+            $dispatch = true;
         }
-      }
-    }
-
-    if ($dispatch) {
-      // Dispatch!
-      $function = $handler['form_submit_callback'];
-      if (function_exists($function)) {
-        $log = $function($form, $form_state, $form_id);
-        if (!empty($log)) {
-          // Log the event.
-          $log['type'] = $type;
-          event_log_track_insert($log);
+        elseif (!empty($handler['form_ids_regexp']))
+        {
+            foreach ($handler['form_ids_regexp'] as $regexp)
+            {
+                if (preg_match($regexp, $form_id))
+                {
+                    $dispatch = true;
+                    break;
+                }
+            }
         }
-      }
+
+        if ($dispatch)
+        {
+            // Dispatch!
+            $function = $handler['form_submit_callback'];
+            if (function_exists($function))
+            {
+                $log = $function($form, $form_state, $form_id);
+                if (!empty($log))
+                {
+                    // Log the event.
+                    $log['type'] = $type;
+                    event_log_track_insert($log);
+                }
+            }
+        }
     }
-  }
 }
 
 /**
  * Implements hook_form_alter().
  */
-function event_log_track_form_alter(&$form, FormStateInterface $form_state, $form_id) {
-  // Add submit callback to ANY form action.
-  event_log_track_add_submit_handler($form, 'event_log_track_form_submit');
+function event_log_track_form_alter(&$form, FormStateInterface $form_state, $form_id)
+{
+    // Add submit callback to ANY form action.
+    event_log_track_add_submit_handler($form, 'event_log_track_form_submit');
 }
 
 /**
@@ -182,14 +282,19 @@ function event_log_track_form_alter(&$form, FormStateInterface $form_state, $for
  * @param string $callback
  *   The callback to be added.
  */
-function event_log_track_add_submit_handler(array &$element, $callback) {
-  if (array_key_exists("#submit", $element)) {
-    $element["#submit"][] = $callback;
-  }
-  $keys = Element::children($element);
-  foreach ($keys as $key) {
-    if (is_array($element[$key])) {
-      event_log_track_add_submit_handler($element[$key], $callback);
+function event_log_track_add_submit_handler(array & $element, $callback)
+{
+    if (array_key_exists("#submit", $element))
+    {
+        $element["#submit"][] = $callback;
     }
-  }
+    $keys = Element::children($element);
+    foreach ($keys as $key)
+    {
+        if (is_array($element[$key]))
+        {
+            event_log_track_add_submit_handler($element[$key], $callback);
+        }
+    }
 }
+
