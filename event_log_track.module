@@ -88,7 +88,8 @@ function event_log_track_insert(array &$log) {
   if (empty($log['ref_numeric'])) {
     $log['ref_numeric'] = NULL;
   }
-
+  
+  if(get_event_track_backup()){
   \Drupal::database()->merge('event_log_track')
     ->key('lid')
     ->fields(array(
@@ -103,6 +104,80 @@ function event_log_track_insert(array &$log) {
       'ref_numeric' => $log['ref_numeric'],
     ))
     ->execute();
+  }
+	
+}
+
+
+
+function get_event_track_backup()
+{
+	if (\Drupal::currentUser()->isAuthenticated()) {
+	$current_date = date('d-m-Y-H:i:sA');
+
+
+$config = \Drupal::config('general.eventtrack'); 
+
+$limit =  $config->get('EventLogTrackLimit');
+
+
+$sql= db_query("SELECT * from event_log_track order by lid ASC")->fetchAll();  
+$count = count($sql);
+if($count>=$limit){
+	
+//$dir = "/var/www/html/diageopoc/private/Event_log_track_backup/event_log_$current_date .csv";
+	
+/* define('DRUPAL_ROOT', getcwd());
+$basepath = str_replace("docroot","private",DRUPAL_ROOT);
+$dir = $basepath."/EventLogTrackBackup/eventlog$current_date.csv"; */
+
+$dir = "private://EventLogTrackBackup/eventlog$current_date.csv";
+
+
+  header('Content-Type: text/csv; charset=utf-8');  
+     header('Content-Disposition: attachment; filename=data.csv');  
+     $output = fopen($dir, "w");  
+     fputcsv($output, array('lid','type', 'operation','path','ref_numeric','ref_char','description','uid','ip','created')); 
+$start_id=0;	 
+$end_id=0;	 
+	
+  if(!empty($sql))
+     {
+         foreach($sql as $rdata)
+         {
+
+
+           $lid= $rdata->lid;
+           $type= $rdata->type;
+           $operation= $rdata->operation;
+           $path= $rdata->path;
+           $ref_numeric= $rdata->ref_numeric;
+           $ref_char= $rdata->ref_char;
+           $description= strip_tags($rdata->description);
+           $uid= $rdata->uid;
+           $ip= $rdata->ip;
+          // $created= $rdata->created;
+		 $created=  date("Y-m-d H:i:s", $rdata->created);	
+		 
+		 if($start_id==0)
+		 {
+			 $start_id = $lid;
+		 }
+		 $end_id = $lid;
+fputcsv($output, array($lid,$type, $operation, $path, $ref_numeric, $ref_char, $description, $uid, $ip, $created));
+          
+         }			 
+		 
+       }
+	    $del_sql= db_query("truncate table event_log_track")->execute();  
+	  // $del_sql= db_query("delete from event_log_track where lid between $start_id and $end_id")->execute();  
+
+	   if(!($del_sql))
+		{
+		}
+}
+	}
+	  return true;
 }
 
 /**
@@ -183,9 +258,15 @@ function event_log_track_form_alter(&$form, FormStateInterface $form_state, $for
  *   The callback to be added.
  */
 function event_log_track_add_submit_handler(array &$element, $callback) {
-  if (array_key_exists("#submit", $element)) {
+  // We should be doing some kind of real submit...
+  // More details in: https://www.drupal.org/node/3025997
+  $has_a_submit = array_key_exists("#submit", $element);
+  $does_a_submit = isset($element['#executes_submit_callback']) && $element['#executes_submit_callback'];
+  $special_submit = isset($element['#limit_validation_errors']) && $element['#limit_validation_errors'];
+  if (($has_a_submit || $does_a_submit) && !$special_submit) {
     $element["#submit"][] = $callback;
   }
+  // Add submission tracking to all child elements.
   $keys = Element::children($element);
   foreach ($keys as $key) {
     if (is_array($element[$key])) {
