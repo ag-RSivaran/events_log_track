@@ -5,6 +5,8 @@
  * Install, update and uninstall functions for the event_log_track module.
  */
 
+use Drupal\Core\Database\Database;
+
 /**
  * Implements hook_schema().
  */
@@ -44,7 +46,7 @@ function event_log_track_schema() {
       'ref_char' => array(
         'description' => 'A character value that can be used to reference an object.',
         'type' => 'varchar',
-        'length' => '50',
+        'length' => '255',
         'not null' => FALSE,
       ),
       'description' => array(
@@ -80,4 +82,20 @@ function event_log_track_schema() {
   );
 
   return $schema;
+}
+
+/**
+ * Implements hook_update_N().
+ */
+function event_log_track_change_text_field_max_length ($table_name, $field_name, $new_length) {
+    // Alter value field length in fields table
+  db_query("ALTER TABLE `{$table_name}` CHANGE `{$field_name}` `{$field_name}` VARCHAR( {$new_length} )");
+  drupal_set_message('Update has been done.');
+}
+
+/**
+ * Implements hook_update_N().
+ */
+function event_log_track_update_8002() {
+  event_log_track_change_text_field_max_length('event_log_track', 'ref_char', 255);
 }
