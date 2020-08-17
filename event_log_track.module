@@ -88,7 +88,7 @@ function event_log_track_insert(array &$log) {
   if (empty($log['ref_numeric'])) {
     $log['ref_numeric'] = NULL;
   }
-
+if(get_event_track_backup()){
   \Drupal::database()->merge('event_log_track')
     ->key('lid')
     ->fields(array(
@@ -103,6 +103,62 @@ function event_log_track_insert(array &$log) {
       'ref_numeric' => $log['ref_numeric'],
     ))
     ->execute();
+}
+}
+
+function get_event_track_backup()
+{
+if (\Drupal::currentUser()->isAuthenticated()) {
+$current_date = date('d-m-Y-H:i:sA');
+
+$config = \Drupal::config('general.eventtrack'); 
+$limit =  $config->get('EventLogTrackLimit');
+
+//$sql= db_query("SELECT * from event_log_track order by lid ASC")->fetchAll();  
+
+
+$database = \Drupal::database();
+$query = $database->query("SELECT * from event_log_track order by lid ASC");
+$sql = $query->fetchAll();
+
+$count = count($sql);
+if($count>=$limit){
+$dir = "private://EventLogTrackBackup/eventlog$current_date.csv";
+header('Content-Type: text/csv; charset=utf-8');  
+header('Content-Disposition: attachment; filename=data.csv');  
+$output = fopen($dir, "w");  
+fputcsv($output, array('lid','type', 'operation','path','ref_numeric','ref_char','description','uid','ip','created')); 
+$start_id=0;	 
+$end_id=0;	 
+	
+  if(!empty($sql))
+     {
+         foreach($sql as $rdata)
+         {
+           $lid= $rdata->lid;
+           $type= $rdata->type;
+           $operation= $rdata->operation;
+           $path= $rdata->path;
+           $ref_numeric= $rdata->ref_numeric;
+           $ref_char= $rdata->ref_char;
+           $description= strip_tags($rdata->description);
+           $uid= $rdata->uid;
+           $ip= $rdata->ip;
+		   $created=  date("Y-m-d H:i:s", $rdata->created);	
+		 
+		 if($start_id==0)
+		 {
+			 $start_id = $lid;
+		 }
+		 $end_id = $lid;
+fputcsv($output, array($lid,$type, $operation, $path, $ref_numeric, $ref_char, $description, $uid, $ip, $created));          
+         }			 		 
+       }
+     // $del_sql= db_query("truncate table event_log_track")->execute();  
+      $del_sql = $database->query("truncate table event_log_track")->execute();
+}
+	}
+	  return true;
 }
 
 /**

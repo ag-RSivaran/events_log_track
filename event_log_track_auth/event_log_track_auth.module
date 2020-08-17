@@ -92,9 +92,8 @@ function event_log_track_auth_user_login_validate($form, &$form_state) {
     $log = array(
       'type' => 'authentication',
       'operation' => 'fail',
-      'description' => t('%user (pass %pass)', array(
+      'description' => t('Unrecognized Username or Password (user %user)', array(
         '%user' => $form_state->getValue('name'),
-        '%pass' => $form_state->getValue('pass'),
       )),
       'ref_char' => $form_state->getValue('name'),
     );
